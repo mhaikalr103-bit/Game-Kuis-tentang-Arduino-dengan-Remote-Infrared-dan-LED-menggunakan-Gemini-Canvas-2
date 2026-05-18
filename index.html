@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arduino Hacker Quest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.08), transparent 25%);
+        }
+
+        h1, h2, h3, .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.7), 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .neon-border {
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), inset 0 0 10px rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+
+        .btn-answer {
+            transition: all 0.2s ease;
+        }
+        
+        .btn-answer:hover {
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-answer:active {
+            transform: scale(0.98);
+        }
+
+        .correct-answer {
+            background-color: #10b981 !important; /* Emerald 500 */
+            color: white !important;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8) !important;
+            border-color: #059669 !important;
+        }
+
+        .wrong-answer {
+            background-color: #ef4444 !important; /* Red 500 */
+            color: white !important;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8) !important;
+            border-color: #b91c1c !important;
+        }
+
+        .xp-popup {
+            position: absolute;
+            color: #10b981;
+            font-weight: 900;
+            font-size: 2rem;
+            animation: floatUp 1s ease-out forwards;
+            pointer-events: none;
+            text-shadow: 0 0 10px #10b981;
+            z-index: 50;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.2); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .image-container i {
+            filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.6));
+        }
+
+        /* Scanline effect */
+        .scanlines {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="scanlines"></div>
+
+    <!-- MAIN CONTAINER -->
+    <div id="app-container" class="w-full max-w-4xl relative z-10">
+        
+        <!-- PAGE 1: WELCOME SCREEN -->
+        <div id="screen-welcome" class="flex flex-col items-center justify-center text-center space-y-8 min-h-[70vh] bg-slate-800/50 p-8 rounded-2xl neon-border backdrop-blur-sm">
+            <div class="text-6xl text-emerald-400 mb-4 animate-bounce">
+                <i class="fa-solid fa-microchip"></i>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black text-white font-orbitron neon-text">
+                ARDUINO<br><span class="text-emerald-400">IR QUEST</span>
+            </h1>
+            <p class="text-xl text-slate-300 max-w-lg">
+                Selamat datang di simulasi tes pengetahuan Arduino WOKWI. Jawab kuis tebak gambar, kumpulkan XP, dan selesaikan 10 Misi!
+            </p>
+            <button onclick="showScreen('screen-name')" class="mt-8 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold text-2xl py-4 px-12 rounded-full font-orbitron transition-transform hover:scale-110 shadow-[0_0_20px_rgba(16,185,129,0.5)]">
+                <i class="fa-solid fa-play mr-2"></i> MULAI GAME
+            </button>
+        </div>
+
+        <!-- PAGE 2: NAME INPUT SCREEN -->
+        <div id="screen-name" class="hidden flex flex-col items-center justify-center text-center space-y-8 min-h-[70vh] bg-slate-800/50 p-8 rounded-2xl neon-border backdrop-blur-sm">
+            <h2 class="text-3xl md:text-4xl font-bold text-emerald-400 font-orbitron">IDENTIFIKASI PEMAIN</h2>
+            <div class="text-5xl text-blue-400">
+                <i class="fa-solid fa-user-astronaut"></i>
+            </div>
+            <div class="w-full max-w-md space-y-4">
+                <label for="playerName" class="block text-left text-lg text-slate-300">Masukkan Nama / Callsign:</label>
+                <input type="text" id="playerName" placeholder="Cth: Hacker_01" class="w-full bg-slate-900 border-2 border-emerald-500/50 rounded-xl px-6 py-4 text-2xl text-white font-orbitron focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/20 text-center uppercase tracking-widest" onkeypress="handleNameEnter(event)">
+            </div>
+            <button onclick="startGame()" class="bg-blue-500 hover:bg-blue-400 text-slate-900 font-bold text-xl py-3 px-10 rounded-full font-orbitron transition-all hover:scale-105 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                INISIALISASI SISTEM <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+
+        <!-- PAGE 3: GAME SCREEN -->
+        <div id="screen-game" class="hidden w-full">
+            <!-- HUD / Header -->
+            <div class="flex flex-wrap justify-between items-center bg-slate-800/80 p-4 md:p-6 rounded-2xl neon-border mb-6">
+                <div class="flex items-center space-x-4 mb-2 md:mb-0">
+                    <div class="bg-slate-700 p-3 rounded-full text-blue-400">
+                        <i class="fa-solid fa-user-ninja text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider">Player</div>
+                        <div id="display-name" class="text-xl font-bold text-white font-orbitron truncate w-32 md:w-auto">NAMA</div>
+                    </div>
+                </div>
+                
+                <div class="text-center mx-auto md:mx-0 mb-2 md:mb-0">
+                    <div class="text-sm text-emerald-400 font-bold tracking-widest uppercase">Misi <span id="mission-number">1</span>/10</div>
+                    <div class="w-48 bg-slate-700 h-3 rounded-full mt-2 overflow-hidden border border-slate-600">
+                        <div id="mission-progress" class="bg-gradient-to-r from-emerald-500 to-blue-500 h-full w-1/5 transition-all duration-500"></div>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">Soal <span id="question-number">1</span> dari 5</div>
+                </div>
+
+                <div class="flex items-center space-x-3 bg-slate-900 px-6 py-3 rounded-xl border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                    <i class="fa-solid fa-bolt text-yellow-400 text-2xl animate-pulse-glow"></i>
+                    <div>
+                        <div class="text-xs text-yellow-500/80 uppercase">Total XP</div>
+                        <div id="display-xp" class="text-3xl font-black text-yellow-400 font-orbitron">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-slate-800/60 rounded-3xl p-6 md:p-8 border border-slate-700 shadow-xl backdrop-blur-md relative">
+                <!-- Gambar / Ikon Ilustrasi -->
+                <div class="image-container flex justify-center mb-6">
+                    <div id="question-image" class="w-32 h-32 bg-slate-900 rounded-2xl border-2 border-slate-600 flex items-center justify-center text-6xl text-slate-300 relative overflow-hidden">
+                        <!-- Icon will be injected here -->
+                        <i class="fa-solid fa-question"></i>
+                    </div>
+                </div>
+                
+                <!-- Teks Pertanyaan -->
+                <div class="text-center mb-8">
+                    <h3 id="question-text" class="text-2xl md:text-3xl font-bold text-white leading-tight">
+                        Memuat pertanyaan...
+                    </h3>
+                </div>
+
+                <!-- Pilihan Jawaban -->
+                <div id="answer-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Buttons will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 4: MISSION COMPLETE / INTERMISSION -->
+        <div id="screen-mission-complete" class="hidden flex flex-col items-center justify-center text-center space-y-6 bg-slate-800/90 p-10 rounded-3xl border-2 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+            <div class="text-7xl text-yellow-400 animate-bounce">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-4xl font-black text-white font-orbitron uppercase">Misi <span id="completed-mission-num">1</span> Selesai!</h2>
+            <p class="text-xl text-slate-300">Bagus sekali, kamu berhasil menyelesaikan misi ini.</p>
+            <div class="bg-slate-900 px-8 py-4 rounded-xl border border-yellow-500/50">
+                <p class="text-sm text-slate-400 mb-1">XP Saat Ini</p>
+                <p id="intermission-xp" class="text-4xl font-black text-yellow-400 font-orbitron">0</p>
+            </div>
+            <button onclick="nextMission()" id="btn-next-mission" class="mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xl py-4 px-10 rounded-full font-orbitron transition-transform hover:scale-105 shadow-lg shadow-emerald-500/30">
+                LANJUT MISI <span id="next-mission-num">2</span> <i class="fa-solid fa-forward-step ml-2"></i>
+            </button>
+        </div>
+
+        <!-- PAGE 5: GAME COMPLETE -->
+        <div id="screen-game-complete" class="hidden flex flex-col items-center justify-center text-center space-y-8 bg-slate-800/95 p-12 rounded-3xl border-2 border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.4)]">
+            <div class="text-8xl text-blue-400">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h1 class="text-5xl font-black text-white font-orbitron neon-text">SIMULASI SELESAI</h1>
+            <p class="text-2xl text-slate-300">Selamat <span id="final-name" class="text-white font-bold"></span>, kamu telah menyelesaikan semua 10 Misi!</p>
+            
+            <div class="flex space-x-6">
+                <div class="bg-slate-900 px-8 py-6 rounded-2xl border border-yellow-500/50 flex flex-col items-center">
+                    <p class="text-slate-400 mb-2 font-bold">TOTAL XP</p>
+                    <p id="final-xp" class="text-5xl font-black text-yellow-400 font-orbitron">0</p>
+                </div>
+                <div class="bg-slate-900 px-8 py-6 rounded-2xl border border-emerald-500/50 flex flex-col items-center">
+                    <p class="text-slate-400 mb-2 font-bold">AKURASI</p>
+                    <p id="final-accuracy" class="text-5xl font-black text-emerald-400 font-orbitron">0%</p>
+                </div>
+            </div>
+
+            <div id="rank-display" class="text-3xl font-bold text-purple-400 mt-4 animate-pulse">
+                Rank: ARDUINO MASTER
+            </div>
+
+            <button onclick="resetGame()" class="mt-8 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl py-4 px-12 rounded-full font-orbitron transition-transform hover:scale-110 shadow-lg shadow-blue-500/30">
+                <i class="fa-solid fa-rotate-right mr-2"></i> MAIN LAGI
+            </button>
+        </div>
+
+    </div>
+
+    <!-- AUDIO EFFECTS (Optional, using data URIs or silent handling if blocked by browser) -->
+    <!-- Browsers might block autoplaying audio without direct interaction, handled in JS gracefully -->
+
+    <script>
+        // --- DATABASE SOAL (50 Soal dibagi 10 Misi) ---
+        // Diambil dari materi: Latihan Projek Arduino dengan Remote Infrared dan LED
+        
+        const questionDatabase = [
+            // MISI 1: Pengenalan Remote Infrared (5 Soal)
+            { img: "fa-tv", q: "Berdasarkan modul, contoh penggunaan remote infrared dalam kehidupan sehari-hari selain TV dan AC adalah...", correct: "Remote DVD", wrong: ["Remote Mobil", "Remote Drone", "Remote Komputer"] },
+            { img: "fa-wifi", q: "Remote Infrared mengirimkan perintah ke perangkat elektronik tanpa menggunakan kabel. Apa fungsi utamanya?", correct: "Mengontrol perangkat dari jarak jauh", wrong: ["Memperkuat sinyal internet", "Menghasilkan listrik", "Menyimpan data digital"] },
+            { img: "fa-eye-slash", q: "Sifat utama dari sinar inframerah (infrared) yang dipancarkan oleh remote adalah...", correct: "Tidak terlihat oleh mata manusia", wrong: ["Terlihat berwarna merah terang", "Berbentuk laser hijau", "Memancarkan panas yang menyengat"] },
+            { img: "fa-toggle-on", q: "Salah satu fungsi remote infrared dalam sistem elektronik adalah...", correct: "Mengatur ON/OFF perangkat", wrong: ["Mengukur suhu ruangan", "Menambah kapasitas memori", "Menghubungkan ke Bluetooth"] },
+            { img: "fa-lightbulb", q: "Dalam projek Arduino ini, remote infrared digunakan khusus untuk tujuan apa?", correct: "Mengontrol lampu LED", wrong: ["Mengontrol kipas angin", "Menggerakkan motor DC", "Membunyikan speaker"] },
+
+            // MISI 2: IR Receiver (5 Soal)
+            { img: "fa-satellite-dish", q: "Apa pengertian dari IR Receiver?", correct: "Sensor untuk menerima sinyal infrared", wrong: ["Alat pemancar sinyal", "Kabel penghubung daya", "Lampu indikator"] },
+            { img: "fa-arrow-right-to-bracket", q: "Sebagai apakah IR Receiver digolongkan dalam sistem Arduino?", correct: "Alat input (Input device)", wrong: ["Alat output (Output device)", "Alat pemroses (Processing)", "Alat penyimpanan (Storage)"] },
+            { img: "fa-microchip", q: "Apa yang dilakukan IR Receiver setelah menerima sinyal cahaya IR dari remote?", correct: "Mengubahnya menjadi data digital", wrong: ["Memantulkannya kembali", "Mengubahnya menjadi suara", "Menyimpannya dalam baterai"] },
+            { img: "fa-bridge", q: "IR Receiver berfungsi sebagai penghubung antara...", correct: "Remote dan Arduino", wrong: ["Arduino dan Laptop", "LED dan Baterai", "Kabel dan Resistor"] },
+            { img: "fa-barcode", q: "Fungsi lain dari IR Receiver selain menerima sinyal adalah...", correct: "Membaca kode tombol remote", wrong: ["Membuat kode baru", "Mengubah warna LED", "Menambah daya listrik"] },
+
+            // MISI 3: Pin dan Koneksi (5 Soal)
+            { img: "fa-plug", q: "Berapa jumlah pin yang biasanya dimiliki oleh modul IR Receiver?", correct: "3 Pin", wrong: ["2 Pin", "4 Pin", "5 Pin"] },
+            { img: "fa-bolt", q: "Pin VCC pada IR Receiver berfungsi untuk...", correct: "Menerima tegangan (5V)", wrong: ["Mengirim data", "Menghubungkan ke Ground", "Mengatur cahaya LED"] },
+            { img: "fa-arrow-down", q: "Pin pada IR Receiver yang berfungsi untuk Ground adalah...", correct: "GND", wrong: ["VCC", "OUT", "IN"] },
+            { img: "fa-share-nodes", q: "Data dari IR Receiver dikirim ke Arduino melalui pin...", correct: "OUT", wrong: ["VCC", "GND", "5V"] },
+            { img: "fa-network-wired", q: "Berdasarkan tabel Rangkaian Pin (Wiring), Pin OUT pada IR Receiver dihubungkan ke Arduino pada pin nomor berapa?", correct: "Pin 2", wrong: ["Pin 3", "Pin 5V", "Pin GND"] },
+
+            // MISI 4: Komponen dan Wokwi (5 Soal)
+            { img: "fa-laptop-code", q: "Simulator online apa yang digunakan untuk mengerjakan latihan projek ini?", correct: "WOKWI", wrong: ["Tinkercad", "Proteus", "Fritzing"] },
+            { img: "fa-microchip", q: "Papan mikrokontroler utama yang digunakan dalam simulasi ini adalah...", correct: "Arduino Uno", wrong: ["Arduino Nano", "ESP32", "Raspberry Pi"] },
+            { img: "fa-resistor", q: "Berapa nilai resistor yang digunakan untuk dihubungkan ke LED dalam projek ini?", correct: "220 Ohm", wrong: ["1 Kilo Ohm", "10 Kilo Ohm", "330 Ohm"] },
+            { img: "fa-plus-minus", q: "Kaki LED negatif (-) dihubungkan ke pin apa pada Arduino (melalui resistor)?", correct: "GND", wrong: ["Pin 3", "5V", "Pin 2"] },
+            { img: "fa-lightbulb", q: "Kaki LED positif (+) dihubungkan ke pin mana pada Arduino?", correct: "Pin 3", wrong: ["Pin 2", "GND", "5V"] },
+
+            // MISI 5: Alur Kerja Sistem (5 Soal)
+            { img: "fa-hand-pointer", q: "Tahap pertama dalam alur kerja sistem remote IR adalah...", correct: "Tombol remote ditekan", wrong: ["Arduino memproses data", "LED menyala", "Sinyal diterima receiver"] },
+            { img: "fa-wave-square", q: "Setelah tombol ditekan, apa yang dikirimkan oleh remote?", correct: "Sinyal infrared", wrong: ["Sinyal bluetooth", "Gelombang radio", "Suara ultrasonik"] },
+            { img: "fa-tower-cell", q: "Siapa yang bertugas sebagai 'penerima perintah' dalam alur sistem ini?", correct: "IR Receiver", wrong: ["Arduino", "LED", "Remote"] },
+            { img: "fa-gears", q: "Siapa yang bertugas sebagai 'pemroses data' dalam alur sistem ini?", correct: "Arduino", wrong: ["IR Receiver", "LED", "Kabel Jumper"] },
+            { img: "fa-display", q: "Perangkat apa yang bertindak sebagai Output atau perangkat yang dikontrol?", correct: "LED", wrong: ["Arduino", "IR Receiver", "Remote IR"] },
+
+            // MISI 6: Library dan Koding Dasar (5 Soal)
+            { img: "fa-book", q: "Library apa yang perlu di-include agar Arduino bisa membaca remote IR?", correct: "<IRremote.hpp>", wrong: ["<LiquidCrystal.h>", "<Servo.h>", "<Wire.h>"] },
+            { img: "fa-terminal", q: "Perintah Serial.begin(9600); digunakan untuk...", correct: "Mengaktifkan serial monitor", wrong: ["Mengaktifkan IR receiver", "Menyalakan LED", "Mereset Arduino"] },
+            { img: "fa-play", q: "Perintah apa yang digunakan untuk mengaktifkan fungsi IR receiver pada pin yang ditentukan?", correct: "IrReceiver.begin()", wrong: ["IrReceiver.start()", "IR.on()", "Receiver.play()"] },
+            { img: "fa-arrow-right-from-bracket", q: "Perintah pinMode(LED_PIN, OUTPUT); berfungsi untuk...", correct: "Mengatur LED sebagai output", wrong: ["Mengatur LED sebagai input", "Menyalakan LED", "Mematikan LED"] },
+            { img: "fa-code", q: "Fungsi utama dari `void setup()` pada Arduino adalah...", correct: "Menjalankan kode pengaturan satu kali", wrong: ["Mengulang kode terus menerus", "Menyimpan data", "Mengirim sinyal IR"] },
+
+            // MISI 7: Logika Loop dan Decode (5 Soal)
+            { img: "fa-repeat", q: "Fungsi yang akan berjalan berulang-ulang tanpa henti di program Arduino adalah...", correct: "void loop()", wrong: ["void setup()", "void main()", "void start()"] },
+            { img: "fa-magnifying-glass-chart", q: "Kode if (IrReceiver.decode()) berfungsi untuk...", correct: "Mengecek apakah ada data IR yang diterima", wrong: ["Memancarkan sinyal IR", "Menghentikan program", "Menyalakan LED"] },
+            { img: "fa-unlock-keyhole", q: "Variabel `IrReceiver.decodedIRData.command` menyimpan nilai apa?", correct: "Kode tombol yang ditekan", wrong: ["Nomor pin Arduino", "Kecepatan delay", "Status lampu LED"] },
+            { img: "fa-forward-step", q: "Setelah Arduino selesai memproses satu tombol, perintah apa yang membuatnya siap menerima sinyal berikutnya?", correct: "IrReceiver.resume()", wrong: ["IrReceiver.next()", "IrReceiver.clear()", "IrReceiver.stop()"] },
+            { img: "fa-stopwatch", q: "Perintah `delay(300);` artinya menunda program selama...", correct: "300 milidetik", wrong: ["300 detik", "3 detik", "30 milidetik"] },
+
+            // MISI 8: Kode Tombol Remote Bagian 1 (5 Soal)
+            { img: "fa-power-off", q: "Berdasarkan tabel fungsi tombol, Tombol 'Power' mengirimkan kode desimal berapa?", correct: "162", wrong: ["226", "34", "48"] },
+            { img: "fa-lightbulb", q: "Fungsi yang diatur untuk Tombol 'Power' (kode 162) dalam modul adalah...", correct: "LED mati", wrong: ["LED nyala", "LED kedip", "Tampilkan petunjuk"] },
+            { img: "fa-bars", q: "Berdasarkan tabel fungsi tombol, Tombol 'Menu' mengirimkan kode desimal berapa?", correct: "226", wrong: ["162", "34", "48"] },
+            { img: "fa-circle-info", q: "Apa fungsi dari menekan tombol 'Menu' (kode 226)?", correct: "Tampilkan petunjuk", wrong: ["LED mati", "LED nyala", "LED kedip"] },
+            { img: "fa-flask", q: "Berdasarkan tabel fungsi tombol, Tombol 'Test' mengirimkan kode desimal berapa?", correct: "34", wrong: ["162", "226", "48"] },
+
+            // MISI 9: Kode Tombol Remote Bagian 2 (5 Soal)
+            { img: "fa-sun", q: "Apa fungsi dari menekan tombol 'Test' (kode 34)?", correct: "LED nyala", wrong: ["LED mati", "LED kedip", "Tampilkan petunjuk"] },
+            { img: "fa-1", q: "Berdasarkan tabel fungsi tombol, Tombol angka '1' mengirimkan kode desimal berapa?", correct: "48", wrong: ["162", "226", "34"] },
+            { img: "fa-star-half-stroke", q: "Apa fungsi dari menekan tombol '1' (kode 48) berdasarkan modul?", correct: "LED kedip", wrong: ["LED nyala", "LED mati", "Sistem reset"] },
+            { img: "fa-hashtag", q: "Dalam bahasa C/Arduino, format penulisan angka Hexadecimal diawali dengan...", correct: "0x (contoh: 0x30)", wrong: ["Hex_ (contoh: Hex_30)", "16# (contoh: 16#30)", "&H (contoh: &H30)"] },
+            { img: "fa-code-compare", q: "Nilai desimal 48 (Tombol 1) jika ditulis dalam bentuk HEX (seperti di program) adalah...", correct: "0x30", wrong: ["0x48", "0x18", "0x16"] },
+
+            // MISI 10: Konsep Informatika & Penutup (5 Soal)
+            { img: "fa-brain", q: "IR Receiver merupakan contoh dari konsep informatika yaitu...", correct: "Input device", wrong: ["Output device", "Storage device", "Processing unit"] },
+            { img: "fa-lightbulb", q: "Lampu LED merupakan contoh dari konsep informatika yaitu...", correct: "Output device", wrong: ["Input device", "Storage device", "Sensor analog"] },
+            { img: "fa-code-branch", q: "Penggunaan 'if' dalam program Arduino merupakan implementasi dari konsep...", correct: "Percabangan", wrong: ["Perulangan", "Deklarasi", "Inisialisasi"] },
+            { img: "fa-box-open", q: "Tempat untuk menyimpan data sementara dalam kode program (seperti status LED) disebut...", correct: "Variabel", wrong: ["Fungsi", "Library", "Komentar"] },
+            { img: "fa-globe", q: "Projek ini merupakan dasar dari simulasi teknologi apa?", correct: "IoT Dasar", wrong: ["Kecerdasan Buatan (AI)", "Realitas Virtual (VR)", "Keamanan Siber (Cyber Security)"] }
+        ];
+
+        // --- GAME VARIABLES ---
+        let playerName = "";
+        let currentMission = 1;
+        let currentQuestionInMission = 0; // 0 to 4
+        let currentGlobalQuestionIndex = 0; // 0 to 49
+        let totalXP = 0;
+        let correctAnswersCount = 0;
+        const xpPerCorrect = 100;
+        
+        let currentOptions = []; // To store shuffled options
+        let isAnswering = false;
+
+        // --- DOM ELEMENTS ---
+        const screens = {
+            welcome: document.getElementById('screen-welcome'),
+            name: document.getElementById('screen-name'),
+            game: document.getElementById('screen-game'),
+            missionComplete: document.getElementById('screen-mission-complete'),
+            gameComplete: document.getElementById('screen-game-complete')
+        };
+
+        // --- SOUND EFFECTS (Using tiny beep sounds generated via Web Audio API for self-containment) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration, vol=0.1) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            correct: () => { playTone(600, 'sine', 0.1); setTimeout(() => playTone(800, 'sine', 0.2), 100); },
+            wrong: () => { playTone(300, 'sawtooth', 0.3); },
+            levelUp: () => { 
+                playTone(400, 'square', 0.1); 
+                setTimeout(() => playTone(500, 'square', 0.1), 100);
+                setTimeout(() => playTone(600, 'square', 0.2), 200);
+                setTimeout(() => playTone(800, 'square', 0.4), 300);
+            }
+        };
+
+        // --- FUNCTIONS ---
+
+        function showScreen(screenId) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function handleNameEnter(event) {
+            if (event.key === "Enter") {
+                startGame();
+            }
+        }
+
+        function startGame() {
+            const nameInput = document.getElementById('playerName').value.trim();
+            if (nameInput === "") {
+                // Simple shake effect on input
+                const inputEl = document.getElementById('playerName');
+                inputEl.classList.add('animate-bounce');
+                setTimeout(() => inputEl.classList.remove('animate-bounce'), 1000);
+                return;
+            }
+            
+            playerName = nameInput.toUpperCase();
+            document.getElementById('display-name').innerText = playerName;
+            
+            // Reset variables
+            currentMission = 1;
+            currentQuestionInMission = 0;
+            currentGlobalQuestionIndex = 0;
+            totalXP = 0;
+            correctAnswersCount = 0;
+            updateXPDisplay();
+            
+            // Start audio context if needed on user interaction
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+
+            loadQuestion();
+            showScreen('screen-game');
+        }
+
+        function updateXPDisplay() {
+            // Animate number change
+            const xpElement = document.getElementById('display-xp');
+            let start = parseInt(xpElement.innerText);
+            let end = totalXP;
+            
+            if(start === end) return;
+            
+            let duration = 500; // ms
+            let startTime = null;
+            
+            function animation(currentTime) {
+                if (startTime === null) startTime = currentTime;
+                let timeElapsed = currentTime - startTime;
+                let progress = Math.min(timeElapsed / duration, 1);
+                
+                xpElement.innerText = Math.floor(start + (end - start) * progress);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animation);
+                } else {
+                    xpElement.innerText = end;
+                }
+            }
+            requestAnimationFrame(animation);
+        }
+
+        function loadQuestion() {
+            isAnswering = false;
+            const qData = questionDatabase[currentGlobalQuestionIndex];
+            
+            // Update HUD
+            document.getElementById('mission-number').innerText = currentMission;
+            document.getElementById('question-number').innerText = currentQuestionInMission + 1;
+            
+            // Progress bar
+            const progressPercent = ((currentQuestionInMission) / 5) * 100;
+            document.getElementById('mission-progress').style.width = `${progressPercent}%`;
+
+            // Set Content
+            document.getElementById('question-image').innerHTML = `<i class="fa-solid ${qData.img}"></i>`;
+            document.getElementById('question-text').innerText = qData.q;
+
+            // Prepare answers (shuffle)
+            currentOptions = [qData.correct, ...qData.wrong];
+            // Fisher-Yates shuffle
+            for (let i = currentOptions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [currentOptions[i], currentOptions[j]] = [currentOptions[j], currentOptions[i]];
+            }
+
+            // Render buttons
+            const grid = document.getElementById('answer-grid');
+            grid.innerHTML = '';
+            
+            const letters = ['A', 'B', 'C', 'D'];
+
+            currentOptions.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-answer relative overflow-hidden bg-slate-700/80 hover:bg-slate-600 text-left p-4 md:p-5 rounded-xl border border-slate-500 shadow-md flex items-center group';
+                
+                btn.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-slate-800 border-2 border-emerald-500 text-emerald-400 flex items-center justify-center font-bold mr-4 shrink-0 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        ${letters[index]}
+                    </div>
+                    <span class="text-white font-medium text-lg">${opt}</span>
+                `;
+                
+                btn.onclick = (e) => checkAnswer(opt, btn, e);
+                grid.appendChild(btn);
+            });
+        }
+
+        function showFloatingXP(x, y, amount) {
+            const xpText = document.createElement('div');
+            xpText.className = 'xp-popup';
+            xpText.innerText = `+${amount} XP`;
+            xpText.style.left = `${x}px`;
+            xpText.style.top = `${y}px`;
+            document.body.appendChild(xpText);
+            
+            setTimeout(() => {
+                xpText.remove();
+            }, 1000);
+        }
+
+        function checkAnswer(selectedOpt, btnElement, event) {
+            if (isAnswering) return;
+            isAnswering = true;
+
+            const qData = questionDatabase[currentGlobalQuestionIndex];
+            const isCorrect = selectedOpt === qData.correct;
+            
+            // Disable all buttons
+            const allBtns = document.querySelectorAll('.btn-answer');
+            allBtns.forEach(b => b.style.pointerEvents = 'none');
+
+            if (isCorrect) {
+                sounds.correct();
+                btnElement.classList.add('correct-answer');
+                totalXP += xpPerCorrect;
+                correctAnswersCount++;
+                updateXPDisplay();
+                
+                // Show floating XP near click
+                if(event) {
+                    showFloatingXP(event.clientX, event.clientY, xpPerCorrect);
+                }
+
+                // Add slight success glow to image
+                const imgContainer = document.getElementById('question-image');
+                imgContainer.classList.add('bg-emerald-900/50', 'border-emerald-500');
+                
+            } else {
+                sounds.wrong();
+                btnElement.classList.add('wrong-answer');
+                // Highlight correct answer
+                allBtns.forEach(b => {
+                    if (b.innerText.substring(2).trim() === qData.correct || b.querySelector('span').innerText === qData.correct) {
+                        b.classList.add('correct-answer');
+                        b.classList.remove('bg-slate-700/80', 'hover:bg-slate-600');
+                    }
+                });
+                
+                // Add error glow to image
+                const imgContainer = document.getElementById('question-image');
+                imgContainer.classList.add('bg-red-900/50', 'border-red-500');
+            }
+
+            // Wait then proceed
+            setTimeout(() => {
+                // Remove visual states
+                const imgContainer = document.getElementById('question-image');
+                imgContainer.classList.remove('bg-emerald-900/50', 'border-emerald-500', 'bg-red-900/50', 'border-red-500');
+
+                currentQuestionInMission++;
+                currentGlobalQuestionIndex++;
+
+                if (currentQuestionInMission >= 5) {
+                    // Mission Complete
+                    completeMission();
+                } else {
+                    loadQuestion();
+                }
+            }, 1500);
+        }
+
+        function completeMission() {
+            if (currentMission >= 10) {
+                endGame();
+            } else {
+                sounds.levelUp();
+                document.getElementById('completed-mission-num').innerText = currentMission;
+                document.getElementById('intermission-xp').innerText = totalXP;
+                document.getElementById('next-mission-num').innerText = currentMission + 1;
+                showScreen('screen-mission-complete');
+            }
+        }
+
+        function nextMission() {
+            currentMission++;
+            currentQuestionInMission = 0;
+            loadQuestion();
+            showScreen('screen-game');
+        }
+
+        function endGame() {
+            sounds.levelUp();
+            document.getElementById('final-name').innerText = playerName;
+            document.getElementById('final-xp').innerText = totalXP;
+            
+            const accuracy = Math.round((correctAnswersCount / 50) * 100);
+            document.getElementById('final-accuracy').innerText = `${accuracy}%`;
+
+            // Determine Rank
+            let rank = "";
+            if (accuracy >= 90) rank = "🏆 ARDUINO MASTER";
+            else if (accuracy >= 70) rank = "🥇 SENSOR SPECIALIST";
+            else if (accuracy >= 50) rank = "🥈 WOKWI APPRENTICE";
+            else rank = "🥉 TRAINEE HACKER";
+            
+            document.getElementById('rank-display').innerText = `Rank: ${rank}`;
+            
+            showScreen('screen-game-complete');
+        }
+
+        function resetGame() {
+            showScreen('screen-welcome');
+        }
+    </script>
+</body>
+</html>
